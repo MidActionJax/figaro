@@ -21,10 +21,12 @@ and `learnings/coursework-edits.md` with `agents/coursework-gsw.md`.
 
 ## Tools required
 
-Same shape as `agents/coursework-gsw.md` — **LMS access: UNRESOLVED — TODO**,
-separately, for Columbus State's own portal (a different system/session from
-GSW's, even though the agent behavior is the same). Do not assume a GSW session
-carries over.
+**LMS access: resolved 2026-08-20**, same mechanism as
+`agents/coursework-gsw.md` — `scripts/lms_login.py colstate` (user-run) /
+`scripts/lms_check.py colstate` (headless-safe), own separate session state at
+`sessions/lms_colstate_state.json`. Do not assume a GSW session carries over —
+confirmed both schools are entirely separate sessions even though they share
+the same underlying USG Brightspace infrastructure.
 
 ## Behavior
 
