@@ -31,3 +31,10 @@ real signal.
   attention, otherwise skip.
 - Do not guess at commitments (dates, dollar amounts, "yes I'll do X") the user
   hasn't actually made.
+- Do not draft replies to short, content-free personal pings (e.g. a one-word
+  subject like "Coffee" with an empty body) even from known contacts — the user
+  handles these themselves outside the queue. (Confirmed 2026-08-20: rejected a
+  drafted reply to exactly this pattern from a family contact — "we dont need to
+  respond to these coffee things.") Still flag genuinely unclear personal mail
+  with real content per the "when unsure" rule above; this exception is narrowly
+  about near-empty pings, not personal correspondence in general.
