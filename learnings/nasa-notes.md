@@ -1,8 +1,8 @@
 # Learnings: nasa-notes
 
-Raw log, one entry per completed Salsbergs task, oldest first. Hand-append for now
-(no script writes to this yet — Salsbergs should append after each task per
-`agents/nasa-clear.md`). Periodically consolidated into
+Raw log, one entry per completed Salsbergs task, oldest first. Appended by
+`scripts/code_queue_lib.py` on approve/reject (see `code_queue/`, the dashboard's
+"Salsbergs — code changes" section). Periodically consolidated into
 [instructions/nasa-clear.md](../instructions/nasa-clear.md) once real patterns
 emerge — do not hand-prune, raw history stays for audit purposes.
 

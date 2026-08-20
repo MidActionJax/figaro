@@ -7,9 +7,14 @@ it beyond a trusted home network without adding some first.
 Usage:
     python dashboard/server.py [--port 5151] [--host 127.0.0.1]
 
-Queue send/approve/reject mechanics live in scripts/queue_lib.py, shared with
-scripts/review_queue.py (the terminal equivalent) so the two UIs can't drift apart
-on what "approve" actually does.
+Two queues, two libraries:
+- Email drafts: scripts/queue_lib.py, shared with scripts/review_queue.py (the
+  terminal equivalent) so the two UIs can't drift apart on what "approve" does.
+- Salsbergs code changes: scripts/code_queue_lib.py — commit/push/PR on approve,
+  as deterministic subprocess calls with real verification at each step, not a
+  nested claude call (same lesson as the Gmail send path: don't trust an LLM's
+  own report of success for the mechanical execution of an already-approved
+  action).
 
 Chat is intentionally read-only (Read tool only, no Bash/Write/Edit/MCP tools) —
 it can answer questions about the repo, queue state, and learnings, but it cannot
@@ -26,6 +31,7 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import queue_lib as ql
+import code_queue_lib as cql
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -76,7 +82,28 @@ def index():
             "body": body.strip(),
             "has_thread_id": bool(meta.get("thread_id")),
         })
-    return render_template("index.html", pending=pending, recent_learnings=learnings_tail())
+
+    code_pending = []
+    for path in cql.list_pending():
+        meta, body = cql.parse_task(path)
+        files = [f.strip() for f in meta.get("files", "").split(",") if f.strip()]
+        code_pending.append({
+            "filename": path.name,
+            "repo_name": meta.get("repo_name", "?"),
+            "pr_title": meta.get("pr_title", "?"),
+            "base_branch": meta.get("base_branch", "?"),
+            "new_branch": meta.get("new_branch", "?"),
+            "files": files,
+            "body": body.strip(),
+            "diff": cql.get_live_diff(meta.get("repo_path", ""), files) if meta.get("repo_path") else "(no repo_path)",
+            "is_valid": bool(meta.get("repo_path") and meta.get("base_branch")
+                              and meta.get("new_branch") and files and meta.get("pr_title")),
+        })
+
+    return render_template(
+        "index.html", pending=pending, code_pending=code_pending,
+        recent_learnings=learnings_tail(),
+    )
 
 
 @app.route("/queue/<filename>/approve", methods=["POST"])
@@ -106,6 +133,25 @@ def reject(filename):
         return redirect(url_for("index"))
     reason = request.form.get("reason", "")
     ql.reject_draft(path, reason)
+    return redirect(url_for("index"))
+
+
+@app.route("/code_queue/<filename>/approve", methods=["POST"])
+def code_approve(filename):
+    path = cql.CODE_QUEUE_DIR / filename
+    if not path.exists():
+        return redirect(url_for("index"))
+    ok, msg = cql.approve_task(path)
+    return redirect(url_for("index", code_result="1" if ok else "0", code_msg=msg[:200]))
+
+
+@app.route("/code_queue/<filename>/reject", methods=["POST"])
+def code_reject(filename):
+    path = cql.CODE_QUEUE_DIR / filename
+    if not path.exists():
+        return redirect(url_for("index"))
+    reason = request.form.get("reason", "")
+    cql.reject_task(path, reason)
     return redirect(url_for("index"))
 
 
