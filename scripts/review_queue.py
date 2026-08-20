@@ -36,6 +36,12 @@ LEARNINGS_FILE = REPO_ROOT / "learnings" / "email-rejections.md"
 # `claude mcp list` / the tool name observed when create_draft etc. are used.
 SEND_TOOL_NAME = "mcp__gmail__reply"
 
+# subprocess.run() doesn't do PATHEXT resolution on Windows the way a shell does, so
+# a bare "claude" fails to find claude.cmd even though `where claude` finds it fine.
+CLAUDE_BIN = shutil.which("claude")
+if CLAUDE_BIN is None:
+    sys.exit("Could not find 'claude' on PATH. Is Claude Code installed and on PATH?")
+
 
 def parse_draft(path: Path):
     text = path.read_text(encoding="utf-8")
@@ -85,7 +91,7 @@ def send_via_claude(thread_id: str, body: str) -> bool:
         f"disclaimer, do not touch any other thread or message.\n\n---\n{body}\n---"
     )
     cmd = [
-        "claude", "-p", prompt,
+        CLAUDE_BIN, "-p", prompt,
         "--allowedTools", SEND_TOOL_NAME,
         "--permission-mode", "acceptEdits",
         "--output-format", "text",
