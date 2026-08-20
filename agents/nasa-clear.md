@@ -72,6 +72,29 @@ general-purpose design intent.
 - This is specific to repos where genuine prior context exists — don't manufacture
   a "continue" step for a repo that's never had a real session in it.
 
+## Follow-up (not built yet): live UMich inbox visibility for NASA chat routing
+
+`dashboard/server.py`'s chat has a keyword router (2026-08-20) that sends
+NASA-flavored questions to the resumed AWSRT session instead of Figaro's own
+repo — e.g. asking "what should we say to Igor" correctly pulls real prior
+context from that session. But that session only has *old* context. If Igor (a
+NASA/CLEAR contact) sends a *new* email tomorrow, nothing currently connects it
+to anything:
+
+- The user's University of Michigan email isn't wired into email triage at all
+  yet — Phase 1 is Gmail-only (see CLAUDE.md decisions).
+- Even once UMich is connected, a new Igor email would just land in the triage
+  queue as its own draft. The AWSRT-session resume wouldn't automatically know
+  about it unless someone discusses it in that session directly, or the
+  NASA-routed chat path is *also* given its own direct read/search access to the
+  UMich inbox — the same pattern `agents/email-triage.md` already has for Gmail,
+  just pointed at a different account and wired into the chat router in
+  `dashboard/server.py`.
+
+**Come back to this once UMich email access actually exists.** Nothing to build
+until then — this is a placeholder so the gap isn't forgotten, not a task to
+start now.
+
 ## Tools required
 
 - Full read/write/git access scoped to the repo the current task is in (via
