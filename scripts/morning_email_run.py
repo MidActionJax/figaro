@@ -10,14 +10,35 @@ Gmail directly, so the agent gets the same MCP-based Gmail access, the same
 CLAUDE.md/agents/instructions context, and the same file tools it would have in an
 interactive session.
 
-IMPORTANT — before pointing Windows Task Scheduler at this script:
-Run it manually a few times first (`python scripts/morning_email_run.py`) and watch
-the output. The `--disallowed-tools` list below is a best-effort safety net based on
-the Gmail MCP tool names observed on this machine (see `claude mcp list`); MCP tool
-name prefixes can differ across environments/reconnects. Confirm no send/trash/spam
-tool call happened before trusting this unattended. When in doubt, drop
-`--permission-mode acceptEdits` and run without it once so Claude Code prompts you
-interactively for every tool call.
+KNOWN UNRESOLVED ISSUE (as of 2026-08-20) — this script does not reliably work
+unattended right now, and it's not a quick fix:
+
+Running the full multi-step triage prompt headlessly (`-p`) reliably hits a
+permission wall on the first Gmail tool call, even with `--allowedTools` covering
+exactly the tools needed. Ruled out so far, each confirmed by direct testing:
+  - Not a tool-naming bug (confirmed the real `mcp__claude_ai_Gmail__*` prefix).
+  - Not fixed by `--dangerously-skip-permissions` on the nested process (still
+    generates "needs approval" text — the model itself is declining, this isn't
+    the CLI's permission dialog).
+  - Not fixed by `--continue`/`--resume` into a session with real prior context
+    (tried resuming AWSRT-style; the model correctly saw prior context but the
+    Gmail tool call was still denied).
+  - Chaining two calls in the *same* session — a first call that successfully
+    used `search_threads`, then `--continue` into the full prompt in that same
+    session — produced real carried-over context (it correctly referenced the
+    earlier result) but the *next* Gmail tool call was still denied, and this
+    time as an actual permission-system denial, not just the model hesitating.
+    That's the strongest signal this is a genuine constraint in how `-p` mode
+    handles MCP tool permissions across multiple calls in one session, not
+    something fixable by prompt wording or flag choice from the outside.
+
+**Current recommendation: don't rely on this script unattended.** Interactive/
+conversational triage (asking Figaro directly, in a normal session, to check
+Gmail) works reliably and has been used for real triage runs — see the
+`2026-08-20-162723 Coffeee` entry in `learnings/email-rejections.md` for a real
+example. Revisit this script if Claude Code's headless permission model changes,
+or if there's a way to pre-authorize specific MCP tools for a session that this
+investigation didn't find.
 """
 
 import argparse

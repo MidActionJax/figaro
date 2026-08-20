@@ -49,11 +49,18 @@ def is_nasa_related(message: str) -> bool:
 
 
 def learnings_tail(n_entries: int = 5) -> str:
+    if not ql.LEARNINGS_FILE.exists():
+        return "(learnings/email-rejections.md not found)"
     text = ql.LEARNINGS_FILE.read_text(encoding="utf-8")
     # First chunk is the file's header/format docs, not a real entry.
     real_entries = text.split("\n### ")[1:]
     tail = ["### " + e.strip() for e in real_entries[-n_entries:]]
     return "\n\n".join(tail) if tail else "(no entries yet)"
+
+
+@app.route("/favicon.ico")
+def favicon():
+    return "", 204
 
 
 @app.route("/")
@@ -77,7 +84,7 @@ def approve(filename):
     path = ql.QUEUE_DIR / filename
     if not path.exists():
         return redirect(url_for("index"))
-    ok = ql.approve_draft(path)
+    ok, _msg = ql.approve_draft(path)
     return redirect(url_for("index", sent="1" if ok else "0"))
 
 
@@ -88,7 +95,7 @@ def edit(filename):
         return redirect(url_for("index"))
     edited_body = request.form.get("body", "")
     summary = request.form.get("summary", "")
-    ok = ql.send_edited_draft(path, edited_body, summary)
+    ok, _msg = ql.send_edited_draft(path, edited_body, summary)
     return redirect(url_for("index", sent="1" if ok else "0"))
 
 
@@ -104,7 +111,8 @@ def reject(filename):
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
-    message = request.json.get("message", "").strip()
+    payload = request.get_json(silent=True) or {}
+    message = (payload.get("message") or "").strip()
     if not message:
         return jsonify({"reply": ""})
 
@@ -139,9 +147,24 @@ def chat():
         cwd = REPO_ROOT
         source = "figaro"
 
-    result = subprocess.run(
-        cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", timeout=120
-    )
+    try:
+        result = subprocess.run(
+            cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", timeout=120
+        )
+    except subprocess.TimeoutExpired:
+        return jsonify({
+            "reply": "Timed out after 120s waiting for a response — try a narrower question, "
+                     "or this may be the same permission-wall behavior documented in "
+                     "scripts/morning_email_run.py if the question needed a tool call that stalled.",
+            "source": source,
+        })
+    except Exception as e:
+        return jsonify({"reply": f"Error running the lookup: {e}", "source": source})
+
+    if result.returncode != 0:
+        detail = (result.stdout.strip() or result.stderr.strip() or "no output")
+        return jsonify({"reply": f"Lookup failed (exit {result.returncode}): {detail}", "source": source})
+
     reply = result.stdout.strip() or "(no response)"
     return jsonify({"reply": reply, "source": source})
 

@@ -70,8 +70,21 @@ through real use.
 
 ## How the email triage loop works right now
 
-1. `scripts/morning_email_run.py` is the entry point (run manually for now, or via
-   Windows Task Scheduler later — not yet wired up).
+**`scripts/morning_email_run.py` (unattended headless triage) does not reliably
+work yet — this is a real, investigated dead end, not just "untested."** Full
+writeup of what was ruled out is in that file's docstring. Short version: the
+first Gmail tool call in a headless `-p` run reliably hits a permission wall that
+survives correct tool naming, `--dangerously-skip-permissions`, and session
+resume/continuity — including a test where a prior call in the *same* session had
+already used the tool successfully. This looks like a genuine constraint in how
+`-p` mode handles MCP tool permissions, not something fixable from outside the
+CLI. **Interactive triage works reliably instead** — just ask Figaro directly, in
+a normal session, to check Gmail. That's the supported path for now; see
+`learnings/email-rejections.md` for a real example (the "Coffeee" entry).
+
+1. `scripts/morning_email_run.py` is the entry point for unattended runs (not
+   currently reliable — see above). Interactive triage (asking directly) is the
+   supported path today.
 2. It invokes `claude -p` headless, pointing it at `agents/email-triage.md` and
    `instructions/email-triage.md`, with Gmail MCP tools available.
 3. The agent reads unread/recent Gmail, classifies importance, and for important
@@ -79,11 +92,25 @@ through real use.
    and the tail of `learnings/email-rejections.md`.
 4. Drafts are written as individual markdown files in `queue/`, one per draft, with
    YAML frontmatter (`status: pending`). **No email is ever sent automatically.**
-5. The user reviews with `scripts/review_queue.py` (approve / edit / reject).
-   - Approve → sends as-is via Gmail MCP, moves file to `queue/done/`.
-   - Edit → opens the draft in the user's editor, sends the edited version, logs a
-     diff summary to `learnings/email-rejections.md`.
+5. The user reviews with `scripts/review_queue.py` or the dashboard (approve /
+   edit / reject).
+   - Approve → sends as-is, moves file to `queue/done/`.
+   - Edit → opens the draft (editor for the terminal script, a textarea for the
+     dashboard), sends the edited version, logs a diff summary to
+     `learnings/email-rejections.md`.
    - Reject → does not send, logs the reason to `learnings/email-rejections.md`.
+
+**The actual send step is direct Gmail API, not Claude Code** —
+`scripts/gmail_api.py`, set up once via `python scripts/gmail_auth_setup.py`
+(see `docs/gmail-api-setup.md`). This changed 2026-08-20 after real testing
+found the original design (`claude -p` with the Gmail MCP reply tool) unreliable
+in the same way as the headless-triage issue above: a `-p` call could exit 0
+looking successful while having sent nothing, because the underlying MCP tool
+call was silently denied by what looks like a built-in Claude Code safety
+classifier for sensitive actions. Reading/searching Gmail through the MCP
+connector is unaffected and still works fine — only the mechanical "send this"
+step moved. If `sessions/gmail_token.json` doesn't exist yet, sending will fail
+with a clear `GmailNotAuthorized` message pointing at the setup doc.
 
 ## Rules that apply to every subagent, always
 

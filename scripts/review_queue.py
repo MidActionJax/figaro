@@ -60,10 +60,8 @@ def review_one(path: Path) -> str:
         if not meta.get("thread_id"):
             print("No thread_id in frontmatter — cannot send. Skipping.")
             return "skip"
-        if ql.approve_draft(path):
-            print("Sent and logged.")
-        else:
-            print("Send failed — left in queue as pending.")
+        ok, msg = ql.approve_draft(path)
+        print("Sent and logged." if ok else f"Send failed — left in queue as pending.\n{msg}")
         return "handled"
 
     if choice == "e":
@@ -78,10 +76,8 @@ def review_one(path: Path) -> str:
             print("No thread_id in frontmatter — cannot send. Skipping.")
             return "skip"
         summary = input("One-line summary of what you changed (for learnings log): ").strip()
-        if ql.send_edited_draft(path, edited, summary):
-            print("Sent and logged.")
-        else:
-            print("Send failed — left in queue as pending.")
+        ok, msg = ql.send_edited_draft(path, edited, summary)
+        print("Sent and logged." if ok else f"Send failed — left in queue as pending.\n{msg}")
         return "handled"
 
     if choice == "r":
