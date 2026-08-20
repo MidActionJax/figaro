@@ -59,10 +59,13 @@ general-purpose design intent.
   task is about AWSRT, resume that session (`claude --continue` run from inside
   the AWSRT directory, or `claude --resume 6134fed2-8d6f-41dd-9b77-78158c7d239e`
   by id if invoked from elsewhere) instead of starting a fresh session with no
-  history. **Not yet verified end-to-end** — confirm `--continue`/`--resume`
-  behaves the same way in headless (`-p`) mode as interactively before relying on
-  it for an unattended run; if it doesn't resume cleanly, fall back to a fresh
-  session and say so rather than silently losing context.
+  history. **Confirmed working 2026-08-20:** `claude --continue -p "..." ` from
+  inside AWSRT, with `--disallowedTools Bash,Edit,Write,NotebookEdit` for the
+  test itself, returned an accurate, specific summary of real prior work (the
+  login-node monitoring heartbeat scripts, a 16-commit `jax`-branch merge, an
+  in-progress PR for items 7/8/13) — real resumed context, not a generic
+  response. If a future resume attempt doesn't come back with anything specific,
+  fall back to a fresh session and say so rather than silently losing context.
 - **CLEAR has no existing session** (checked 2026-08-20, no session storage found
   for that directory) — start fresh there. If real context accumulates over time,
   a future task there should resume the most recent CLEAR session the same way.
