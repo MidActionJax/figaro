@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Figaro</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <h1>Figaro</h1>
+    <p class="subtitle">chief of staff — approval queue &amp; chat</p>
+  </header>
+
+  <main>
+    <section class="queue">
+      <h2>Approval queue{% if pending %} ({{ pending|length }}){% endif %}</h2>
+
+      {% if request.args.get('sent') == '1' %}
+        <p class="flash flash-ok">Sent.</p>
+      {% elif request.args.get('sent') == '0' %}
+        <p class="flash flash-error">Send failed — left in queue.</p>
+      {% endif %}
+
+      {% if not pending %}
+        <p class="empty">Nothing pending.</p>
+      {% endif %}
+
+      {% for item in pending %}
+        <article class="draft" id="{{ item.filename }}">
+          <div class="draft-meta">
+            <strong>{{ item.subject }}</strong>
+            <span class="from">from {{ item.from }}</span>
+            <span class="received">{{ item.received }}</span>
+          </div>
+          <pre class="draft-body">{{ item.body }}</pre>
+
+          {% if not item.has_thread_id %}
+            <p class="warn">No thread_id — this draft can't be sent (approve/edit disabled).</p>
+          {% endif %}
+
+          <div class="actions">
+            <form method="post" action="{{ url_for('approve', filename=item.filename) }}" class="inline-form">
+              <button type="submit" class="btn btn-approve" {{ 'disabled' if not item.has_thread_id }}>Approve</button>
+            </form>
+
+            <button type="button" class="btn btn-edit" onclick="toggleEdit('{{ item.filename }}')" {{ 'disabled' if not item.has_thread_id }}>Edit</button>
+
+            <form method="post" action="{{ url_for('reject', filename=item.filename) }}" class="inline-form reject-form">
+              <input type="text" name="reason" placeholder="reason (optional)">
+              <button type="submit" class="btn btn-reject">Reject</button>
+            </form>
+          </div>
+
+          <form method="post" action="{{ url_for('edit', filename=item.filename) }}" class="edit-form" id="edit-{{ item.filename }}" style="display:none">
+            <textarea name="body" rows="6">{{ item.body }}</textarea>
+            <input type="text" name="summary" placeholder="one-line summary of what you changed">
+            <button type="submit" class="btn btn-approve">Send edited version</button>
+          </form>
+        </article>
+      {% endfor %}
+    </section>
+
+    <section class="chat">
+      <h2>Chat with Figaro</h2>
+      <p class="chat-note">Read-only right now — can answer questions about the queue, learnings, and instructions, but can't take actions yet.</p>
+      <div id="chat-log" class="chat-log"></div>
+      <form id="chat-form" class="chat-form">
+        <input type="text" id="chat-input" placeholder="Ask Figaro something..." autocomplete="off">
+        <button type="submit" class="btn btn-approve">Send</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

@@ -12,12 +12,16 @@ pre-approved a specific action type in writing.
 
 ## Current build phase
 
-**Phases 0-4 are being built in parallel, ahead of the spec's own recommended pace.**
-The spec recommends running email triage for a week before touching Phase 2+; the
-user explicitly chose to override that and start Phase 2+ scaffolding immediately
-(2026-08-20), accepting the risk that approval/learning mechanics are unproven
-outside the email domain. Phase 5 (Figaro dispatcher + meta-agent creation) is still
-held until the individual subagents below exist, since it routes across them.
+**Interface-first, as of 2026-08-20.** Earlier the same day the user chose to start
+Phase 2-4 agent scaffolding ahead of the spec's recommended pace (see the agent
+files under `agents/` for GSW/Columbus coursework, Salsbergs/NASA, zyBooks) — then,
+later that day, explicitly paused expanding to *more* agent domains. Current
+priority: build out the dashboard interface and perfect the existing (email
+triage) agent before "hiring" more agents. Read this as the current priority
+ordering, not a reversal — the Phase 2-4 scaffolding still exists and is still
+correct, it's just not being extended further (e.g. no new agents, no chasing the
+LMS-access TODO) until the interface and Phase 1 are solid. Phase 5 (Figaro
+dispatcher + meta-agent creation) remains deliberately held.
 
 Phase 1 (email triage) remains the only domain with a proven approval/learning
 loop (one real cycle: draft → reject → instructions updated) — treat the other
@@ -28,10 +32,24 @@ through real use.
 
 - **Email scope for Phase 1: Gmail only.** The other three inboxes (University of
   Michigan, GSW, Columbus State) are out of scope until Gmail triage is proven out.
-- **No web dashboard for Phase 1.** The spec's original dashboard (Flask/FastAPI +
-  browser UI) is deferred. Approval queue is file-based: drafts land as markdown
-  files in `queue/`, reviewed via `scripts/review_queue.py` in a terminal the user
-  keeps open. Revisit a real web dashboard once the email loop is trustworthy.
+- **Web dashboard built 2026-08-20** (`dashboard/server.py`, Flask). User chose to
+  pause expanding into more agent domains and instead build out the interface and
+  perfect the current (email) agent first, before "hiring" more agents. Two views
+  on one page: approval queue (approve/edit/reject, wired to the same
+  `scripts/queue_lib.py` the terminal `review_queue.py` uses, so the two UIs can't
+  drift apart) and a chat box. Binds to `127.0.0.1` only by default — no auth
+  exists yet, so don't bind `0.0.0.0`/LAN without adding some first, even though
+  the spec wants phone access eventually. `scripts/review_queue.py` (terminal)
+  still works and isn't deprecated — same underlying logic, different UI.
+- **Dashboard chat is read-only by design**, not the Phase 5 dispatcher. It has
+  the `Read` tool only (no Bash/Write/Edit/MCP), so it can answer questions about
+  the repo/queue/learnings but can't take actions. Prompt structure matters here:
+  leading with the actual question and keeping instructional framing short and
+  *after* it is what made this reliable — an earlier version led with several
+  sentences of persona-setup before the question and the model consistently
+  treated the real question as not-yet-arrived ("I don't see a question yet"),
+  even though it was right there in the same message. See the comment in
+  `dashboard/server.py`'s `chat()` if this regresses.
 - **Salsbergs' NASA repo scope: both `AWSRT` and `CLEAR`, not a single hardcoded
   path.** Found at `C:\Users\jaxon\OneDrive\Desktop\Github\AWSRT` (real-time
   forecasting pipeline; already has a `.claude/` dir from prior use) and
