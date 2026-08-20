@@ -12,10 +12,17 @@ pre-approved a specific action type in writing.
 
 ## Current build phase
 
-**Phase 0 + Phase 1 only: Email triage (Gmail).** Per the spec's own recommendation,
-do not build coursework, NASA/CLEAR, zyBooks, or the dispatcher/meta-agent until the
-email loop has run successfully for at least a week. Don't add scaffolding for later
-phases speculatively.
+**Phases 0-4 are being built in parallel, ahead of the spec's own recommended pace.**
+The spec recommends running email triage for a week before touching Phase 2+; the
+user explicitly chose to override that and start Phase 2+ scaffolding immediately
+(2026-08-20), accepting the risk that approval/learning mechanics are unproven
+outside the email domain. Phase 5 (Figaro dispatcher + meta-agent creation) is still
+held until the individual subagents below exist, since it routes across them.
+
+Phase 1 (email triage) remains the only domain with a proven approval/learning
+loop (one real cycle: draft → reject → instructions updated) — treat the other
+domains' instructions files as unvalidated starting points until they've been
+through real use.
 
 ## Decisions made so far (supersede anything in the spec doc that conflicts)
 
@@ -25,6 +32,23 @@ phases speculatively.
   browser UI) is deferred. Approval queue is file-based: drafts land as markdown
   files in `queue/`, reviewed via `scripts/review_queue.py` in a terminal the user
   keeps open. Revisit a real web dashboard once the email loop is trustworthy.
+- **Salsbergs' NASA repo scope: both `AWSRT` and `CLEAR`, not a single hardcoded
+  path.** Found at `C:\Users\jaxon\OneDrive\Desktop\Github\AWSRT` (real-time
+  forecasting pipeline; already has a `.claude/` dir from prior use) and
+  `C:\Users\jaxon\OneDrive\Desktop\Github\CLEAR` (literally "the CLEAR project"
+  repo, matches spec naming). Both are under the `SWMFsoftware` GitHub org. Salsbergs
+  determines which repo a task applies to from the request itself rather than
+  assuming one.
+- **zyBooks academic-integrity gate: confirmed clear by the user (2026-08-20).**
+  Both read/summarize and completion-automation capability are in scope for
+  `agents/zybooks.md` — see that file for how completion access is still granted
+  narrowly (computer-use/browser control is a sensitive tool per the global rules
+  below, so first real use still gets a human go-ahead even though the policy
+  question itself is settled).
+- **Coursework LMS access (GSW/Columbus State): unresolved, flagged as TODO** in
+  `agents/coursework-gsw.md` / `agents/coursework-columbus.md`. Neither Canvas/
+  Blackboard API availability nor persistent-session browser auth has been set up
+  yet — these agents are not functional until that's resolved.
 
 ## How the email triage loop works right now
 
