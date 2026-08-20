@@ -33,6 +33,9 @@ document.getElementById("chat-form").addEventListener("submit", async (e) => {
     const data = await res.json();
     pendingEl.classList.remove("pending");
     pendingEl.querySelector(".text").textContent = data.reply || "(no response)";
+    if (data.source === "awsrt") {
+      pendingEl.querySelector(".who").textContent = "figaro (from awsrt session)";
+    }
   } catch (err) {
     pendingEl.classList.remove("pending");
     pendingEl.querySelector(".text").textContent = "Error reaching Figaro: " + err;
