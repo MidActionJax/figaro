@@ -21,12 +21,20 @@ interactively for every tool call.
 """
 
 import argparse
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# subprocess.run() doesn't do PATHEXT resolution on Windows the way a shell does, so
+# a bare "claude" fails to find claude.cmd even though `where claude` finds it fine.
+# Resolve the real path up front instead.
+CLAUDE_BIN = shutil.which("claude")
+if CLAUDE_BIN is None:
+    sys.exit("Could not find 'claude' on PATH. Is Claude Code installed and on PATH?")
 
 # Gmail tools this agent must never call directly — sending/trashing/spam-marking is
 # a separate, explicitly-approved action performed by review_queue.py, not here.
@@ -76,7 +84,7 @@ def main():
     prompt = build_prompt(args.hours)
 
     cmd = [
-        "claude",
+        CLAUDE_BIN,
         "-p",
         prompt,
         "--disallowedTools",
