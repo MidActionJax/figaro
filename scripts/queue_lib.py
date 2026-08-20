@@ -70,7 +70,10 @@ def log_learning(action: str, meta: dict, reason: str = "", diff_summary: str = 
         f.write("\n" + "\n".join(entry))
 
 
-def send_via_claude(thread_id: str, body: str) -> bool:
+def send_via_claude(thread_id: str, body: str) -> tuple[bool, str]:
+    """Returns (success, message) — message explains failures instead of just
+    silently returning False, since callers (terminal + dashboard) both need to
+    tell the user something useful when a send doesn't go through."""
     prompt = (
         f"Using the Gmail MCP reply tool, send the following exact reply to Gmail "
         f"thread {thread_id}. Do not alter the wording, do not add a signature or "
@@ -82,36 +85,51 @@ def send_via_claude(thread_id: str, body: str) -> bool:
         "--permission-mode", "acceptEdits",
         "--output-format", "text",
     ]
-    result = subprocess.run(cmd, cwd=REPO_ROOT)
-    return result.returncode == 0
+    try:
+        result = subprocess.run(
+            cmd, cwd=REPO_ROOT, capture_output=True, text=True,
+            encoding="utf-8", timeout=90,
+        )
+    except subprocess.TimeoutExpired:
+        return False, (
+            "Send timed out after 90s — the nested claude call didn't finish. "
+            "This is the same permission-wall behavior documented in "
+            "scripts/morning_email_run.py; the send may not have gone through "
+            "at all. Check Gmail directly before retrying."
+        )
+    if result.returncode != 0:
+        return False, f"claude exited {result.returncode}: {result.stdout.strip() or result.stderr.strip()}"
+    return True, result.stdout.strip()
 
 
-def approve_draft(path: Path) -> bool:
-    """Send a draft as-is. Returns True and moves/logs it on success."""
+def approve_draft(path: Path) -> tuple[bool, str]:
+    """Send a draft as-is. Returns (success, message); moves/logs it on success."""
     meta, body = parse_draft(path)
     thread_id = meta.get("thread_id", "")
     if not thread_id:
-        return False
-    if not send_via_claude(thread_id, body.strip()):
-        return False
+        return False, "No thread_id in frontmatter — cannot send."
+    ok, msg = send_via_claude(thread_id, body.strip())
+    if not ok:
+        return False, msg
     DONE_DIR.mkdir(exist_ok=True)
     shutil.move(str(path), DONE_DIR / path.name)
     log_learning("approve", meta)
-    return True
+    return True, msg
 
 
-def send_edited_draft(path: Path, edited_body: str, diff_summary: str) -> bool:
-    """Send an edited version of a draft. Returns True and moves/logs it on success."""
+def send_edited_draft(path: Path, edited_body: str, diff_summary: str) -> tuple[bool, str]:
+    """Send an edited version of a draft. Returns (success, message); moves/logs on success."""
     meta, _ = parse_draft(path)
     thread_id = meta.get("thread_id", "")
     if not thread_id:
-        return False
-    if not send_via_claude(thread_id, edited_body.strip()):
-        return False
+        return False, "No thread_id in frontmatter — cannot send."
+    ok, msg = send_via_claude(thread_id, edited_body.strip())
+    if not ok:
+        return False, msg
     DONE_DIR.mkdir(exist_ok=True)
     shutil.move(str(path), DONE_DIR / path.name)
     log_learning("edit", meta, diff_summary=diff_summary)
-    return True
+    return True, msg
 
 
 def reject_draft(path: Path, reason: str) -> None:

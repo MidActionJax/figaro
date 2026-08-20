@@ -70,8 +70,21 @@ through real use.
 
 ## How the email triage loop works right now
 
-1. `scripts/morning_email_run.py` is the entry point (run manually for now, or via
-   Windows Task Scheduler later — not yet wired up).
+**`scripts/morning_email_run.py` (unattended headless triage) does not reliably
+work yet — this is a real, investigated dead end, not just "untested."** Full
+writeup of what was ruled out is in that file's docstring. Short version: the
+first Gmail tool call in a headless `-p` run reliably hits a permission wall that
+survives correct tool naming, `--dangerously-skip-permissions`, and session
+resume/continuity — including a test where a prior call in the *same* session had
+already used the tool successfully. This looks like a genuine constraint in how
+`-p` mode handles MCP tool permissions, not something fixable from outside the
+CLI. **Interactive triage works reliably instead** — just ask Figaro directly, in
+a normal session, to check Gmail. That's the supported path for now; see
+`learnings/email-rejections.md` for a real example (the "Coffeee" entry).
+
+1. `scripts/morning_email_run.py` is the entry point for unattended runs (not
+   currently reliable — see above). Interactive triage (asking directly) is the
+   supported path today.
 2. It invokes `claude -p` headless, pointing it at `agents/email-triage.md` and
    `instructions/email-triage.md`, with Gmail MCP tools available.
 3. The agent reads unread/recent Gmail, classifies importance, and for important
