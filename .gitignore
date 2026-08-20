@@ -1,0 +1,6 @@
+# Session/auth state — cookies and tokens, never commit these
+sessions/*
+!sessions/.gitkeep
+
+__pycache__/
+*.pyc
