@@ -1,0 +1,132 @@
+"""
+Figaro dashboard: local web app with two views on one page — approval queue and
+chat with Figaro. Binds to 127.0.0.1 only by default; see --host if you want LAN
+access (e.g. from your phone), but that has no authentication yet, so don't expose
+it beyond a trusted home network without adding some first.
+
+Usage:
+    python dashboard/server.py [--port 5151] [--host 127.0.0.1]
+
+Queue send/approve/reject mechanics live in scripts/queue_lib.py, shared with
+scripts/review_queue.py (the terminal equivalent) so the two UIs can't drift apart
+on what "approve" actually does.
+
+Chat is intentionally read-only (Read tool only, no Bash/Write/Edit/MCP tools) —
+it can answer questions about the repo, queue state, and learnings, but it cannot
+take actions. Building an action-taking dispatcher across all subagents is Phase 5,
+deliberately not started yet (see CLAUDE.md) — this chat box is not that.
+"""
+
+import argparse
+import subprocess
+import sys
+from pathlib import Path
+
+from flask import Flask, render_template, request, redirect, url_for, jsonify
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+import queue_lib as ql
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+app = Flask(__name__)
+
+
+def learnings_tail(n_entries: int = 5) -> str:
+    text = ql.LEARNINGS_FILE.read_text(encoding="utf-8")
+    # First chunk is the file's header/format docs, not a real entry.
+    real_entries = text.split("\n### ")[1:]
+    tail = ["### " + e.strip() for e in real_entries[-n_entries:]]
+    return "\n\n".join(tail) if tail else "(no entries yet)"
+
+
+@app.route("/")
+def index():
+    pending = []
+    for path in ql.list_pending():
+        meta, body = ql.parse_draft(path)
+        pending.append({
+            "filename": path.name,
+            "subject": meta.get("subject", "?"),
+            "from": meta.get("from", "?"),
+            "received": meta.get("received", "?"),
+            "body": body.strip(),
+            "has_thread_id": bool(meta.get("thread_id")),
+        })
+    return render_template("index.html", pending=pending, recent_learnings=learnings_tail())
+
+
+@app.route("/queue/<filename>/approve", methods=["POST"])
+def approve(filename):
+    path = ql.QUEUE_DIR / filename
+    if not path.exists():
+        return redirect(url_for("index"))
+    ok = ql.approve_draft(path)
+    return redirect(url_for("index", sent="1" if ok else "0"))
+
+
+@app.route("/queue/<filename>/edit", methods=["POST"])
+def edit(filename):
+    path = ql.QUEUE_DIR / filename
+    if not path.exists():
+        return redirect(url_for("index"))
+    edited_body = request.form.get("body", "")
+    summary = request.form.get("summary", "")
+    ok = ql.send_edited_draft(path, edited_body, summary)
+    return redirect(url_for("index", sent="1" if ok else "0"))
+
+
+@app.route("/queue/<filename>/reject", methods=["POST"])
+def reject(filename):
+    path = ql.QUEUE_DIR / filename
+    if not path.exists():
+        return redirect(url_for("index"))
+    reason = request.form.get("reason", "")
+    ql.reject_draft(path, reason)
+    return redirect(url_for("index"))
+
+
+@app.route("/api/chat", methods=["POST"])
+def chat():
+    message = request.json.get("message", "").strip()
+    if not message:
+        return jsonify({"reply": ""})
+
+    # Question-first framing matters here: an earlier version led with several
+    # sentences of persona/instructions before the actual question, and the model
+    # consistently treated that as unfinished system setup rather than a live
+    # question to answer, replying "I don't see a question yet" even though it was
+    # right there. Leading with the question and keeping the framing short after it
+    # fixed this reliably in testing (2026-08-20).
+    prompt = (
+        f"Answer this question about the Figaro repo, using the Read tool to look "
+        f"things up: {message}\n\n"
+        "(This is a read-only dashboard chat box - look things up freely with "
+        "Read, but you can't write, edit, send, or take actions here. If the "
+        "question asks for an action, say so and point to the right terminal "
+        "command or interactive session instead.)"
+    )
+    cmd = [
+        ql.CLAUDE_BIN, "-p", prompt,
+        "--allowedTools", "Read",
+        "--output-format", "text",
+    ]
+    result = subprocess.run(
+        cmd, cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8", timeout=120
+    )
+    reply = result.stdout.strip() or "(no response)"
+    return jsonify({"reply": reply})
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Run the Figaro dashboard.")
+    parser.add_argument("--port", type=int, default=5151)
+    parser.add_argument("--host", default="127.0.0.1",
+                         help="Use 0.0.0.0 for LAN access (e.g. from your phone) — "
+                              "no auth exists yet, only do this on a trusted network.")
+    args = parser.parse_args()
+    app.run(host=args.host, port=args.port, debug=False)
+
+
+if __name__ == "__main__":
+    main()
