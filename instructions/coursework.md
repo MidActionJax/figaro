@@ -7,9 +7,22 @@ emerge — currently a lean starting point with no consolidated learnings yet.*
 
 Ground every draft in `data/old-coursework/` — match the user's existing
 structure, citation style, and voice rather than generic academic-essay defaults.
-**`data/old-coursework/` is currently empty** — nothing has been imported yet, so
-there's no real grounding available until that's populated. Flag this rather than
-drafting from a generic template when the directory is empty.
+
+**`data/old-coursework/GSW/` populated 2026-08-20** — 48 real docx/pdf
+assignments across 7 courses (Adv Software Engineering, Data Mining, Database
+Design, Decision Support System, Distributed Web Applications, Human Comp,
+Mobile Security), imported from the user's own Dropbox. Deliberately excluded
+from the import: data files (csv/arff), screenshots, a meeting recording, and
+a project zip — not relevant to written-assignment tone/format. Ground written
+drafts in the same *course's* prior work when available (structure/format
+conventions can differ meaningfully by course/instructor); fall back to
+cross-course patterns only if nothing exists for that specific course yet.
+
+**`data/old-coursework/columbus-state/` does not exist yet** — no imported
+material for Columbus State (the user has no accumulated coursework there as
+of 2026-08-20, being a transient student). Flag this and draft cautiously
+(or not at all — see "Things not to do" below) rather than drafting from a
+generic template or borrowing GSW's material for a different school/course.
 
 ## Classification
 
