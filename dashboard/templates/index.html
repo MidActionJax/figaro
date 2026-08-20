@@ -61,6 +61,50 @@
       {% endfor %}
     </section>
 
+    <section class="code-queue">
+      <h2>Salsbergs — code changes{% if code_pending %} ({{ code_pending|length }}){% endif %}</h2>
+
+      {% if request.args.get('code_result') == '1' %}
+        <p class="flash flash-ok">Committed and PR opened: {{ request.args.get('code_msg') }}</p>
+      {% elif request.args.get('code_result') == '0' %}
+        <p class="flash flash-error">Approve failed: {{ request.args.get('code_msg') }}</p>
+      {% endif %}
+
+      {% if not code_pending %}
+        <p class="empty">Nothing pending.</p>
+      {% endif %}
+
+      {% for item in code_pending %}
+        <article class="draft" id="{{ item.filename }}">
+          <div class="draft-meta">
+            <strong>{{ item.pr_title }}</strong>
+            <span class="from">{{ item.repo_name }}</span>
+            <span class="received">{{ item.new_branch }} &rarr; {{ item.base_branch }}</span>
+          </div>
+          <pre class="draft-body">{{ item.body }}</pre>
+          <details>
+            <summary>Diff ({{ item.files|join(', ') }})</summary>
+            <pre class="draft-body diff">{{ item.diff }}</pre>
+          </details>
+
+          {% if not item.is_valid %}
+            <p class="warn">Missing required frontmatter — Approve disabled.</p>
+          {% endif %}
+
+          <div class="actions">
+            <form method="post" action="{{ url_for('code_approve', filename=item.filename) }}" class="inline-form">
+              <button type="submit" class="btn btn-approve" {{ 'disabled' if not item.is_valid }}>Approve (commit + PR)</button>
+            </form>
+
+            <form method="post" action="{{ url_for('code_reject', filename=item.filename) }}" class="inline-form reject-form">
+              <input type="text" name="reason" placeholder="reason (optional)">
+              <button type="submit" class="btn btn-reject">Reject</button>
+            </form>
+          </div>
+        </article>
+      {% endfor %}
+    </section>
+
     <section class="chat">
       <h2>Chat with Figaro</h2>
       <p class="chat-note">Read-only right now — can answer questions about the queue, learnings, and instructions, but can't take actions yet.</p>

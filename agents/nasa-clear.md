@@ -115,12 +115,29 @@ start now.
    within its existing patterns rather than imposing new ones.
 4. Complete the requested work: write/edit code, run relevant tests/builds if the
    repo has them.
-5. Present a summary of the completed work (diff/changes) for approval. **Does not
-   commit or open a PR automatically.**
-6. On approval, commits the changes (clear, conventional commit message) and opens
-   the pull request via `gh pr create` with a real description, then reports back
-   with the PR link.
-7. On reject, holds the work for further discussion without committing anything.
+5. Present the work for approval — **does not commit or open a PR
+   automatically.** Two paths, both real:
+   - **Ad hoc/chat-triggered** (e.g. "go handle X with NASA"): report the
+     diff and a suggested commit message/PR description directly in chat;
+     the user approves in the moment.
+   - **Dashboard queue** (added 2026-08-20, `code_queue/`): write a queue
+     entry — frontmatter `repo_name`, `repo_path`, `base_branch`,
+     `new_branch`, `files` (comma-separated), `pr_title`; body is the PR
+     description / commit message body. The dashboard shows it under
+     "Salsbergs — code changes" with a live `git diff` (not a stored
+     snapshot, so it can't go stale) and Approve/Reject buttons.
+6. On approval, `scripts/code_queue_lib.py`'s `approve_task()` handles
+   commit/push/PR as deterministic subprocess calls (branch, add, commit,
+   verify the commit landed, push, `gh pr create`, then independently verify
+   the PR actually exists via `gh pr view` rather than trusting the create
+   command's exit code) — **not a nested claude call.** This mirrors the
+   lesson from the Gmail send path (`gmail_api.py`): once the user has
+   approved specific, already-prepared content, the mechanical execution
+   step should be deterministic and independently verified, not re-routed
+   through an LLM that could silently under-deliver on a clean exit code.
+7. On reject, holds the work for further discussion without committing
+   anything — the queue entry moves to `code_queue/rejected/`, working tree
+   changes are left untouched for the user to review manually.
 
 Separately, per spec: maintains and updates a NASA task list, checked weekly
 against new emails for changes — **not built yet**, deferred until email triage
@@ -135,8 +152,9 @@ turned into a pull request without explicit approval."
 
 ## On approval / edit / reject
 
-Log to `learnings/nasa-notes.md`: what was requested, which repo, what was
-built, and the outcome (approved-as-is / user made changes first / rejected and
-why). Raw log, not yet consolidated into `instructions/nasa-clear.md` by any
-script — hand-edit that file directly when a real pattern emerges, same as
-`instructions/email-triage.md`.
+For dashboard-queue tasks, `scripts/code_queue_lib.py` logs to
+`learnings/nasa-notes.md` automatically on approve/reject. For ad hoc/
+chat-triggered tasks, log manually the same way: what was requested, which
+repo, what was built, and the outcome. Raw log, not yet consolidated into
+`instructions/nasa-clear.md` by any script — hand-edit that file directly
+when a real pattern emerges, same as `instructions/email-triage.md`.
