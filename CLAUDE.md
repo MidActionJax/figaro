@@ -63,10 +63,17 @@ through real use.
   narrowly (computer-use/browser control is a sensitive tool per the global rules
   below, so first real use still gets a human go-ahead even though the policy
   question itself is settled).
-- **Coursework LMS access (GSW/Columbus State): unresolved, flagged as TODO** in
-  `agents/coursework-gsw.md` / `agents/coursework-columbus.md`. Neither Canvas/
-  Blackboard API availability nor persistent-session browser auth has been set up
-  yet — these agents are not functional until that's resolved.
+- **Coursework LMS access (GSW/Columbus State): resolved 2026-08-20.** Both
+  schools run D2L Brightspace under USG's shared infrastructure; confirmed
+  neither offers students a self-service API token, so both use a persistent
+  Playwright session — `scripts/lms_login.py <gsw|colstate>` (user-run, needs
+  real desktop/MFA) + `scripts/lms_check.py <gsw|colstate>` (headless-safe,
+  reads the saved session). See `agents/coursework-gsw.md` "Tools required"
+  for the full mechanism and what was ruled out along the way (persistent
+  browser *profile* directories had a session-cookie quirk with this SSO flow
+  that explicit `storage_state` export/import sidesteps). Currently reads the
+  homepage only (course list, announcements, calendar) — going deeper into
+  individual courses for specific assignment due dates is real follow-up work.
 
 ## How the email triage loop works right now
 
