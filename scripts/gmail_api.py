@@ -99,7 +99,15 @@ def send_reply(thread_id: str, body: str) -> tuple[bool, str]:
     if not orig_from:
         return False, f"Couldn't find a From address on the last message in thread {thread_id}."
 
-    reply_subject = orig_subject if orig_subject.lower().startswith("re:") else f"Re: {orig_subject}"
+    # Real edge case, not hypothetical: some messages genuinely have an empty
+    # Subject header (confirmed 2026-08-20 against a real thread) — "Re:" with
+    # nothing after it looks broken, so fall back to something sensible instead.
+    if not orig_subject:
+        reply_subject = "Re: (no subject)"
+    elif orig_subject.lower().startswith("re:"):
+        reply_subject = orig_subject
+    else:
+        reply_subject = f"Re: {orig_subject}"
     references = f"{orig_references} {orig_message_id}".strip() if orig_references else orig_message_id
 
     mime_msg = MIMEText(body)
