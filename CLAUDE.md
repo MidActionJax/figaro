@@ -92,11 +92,25 @@ a normal session, to check Gmail. That's the supported path for now; see
    and the tail of `learnings/email-rejections.md`.
 4. Drafts are written as individual markdown files in `queue/`, one per draft, with
    YAML frontmatter (`status: pending`). **No email is ever sent automatically.**
-5. The user reviews with `scripts/review_queue.py` (approve / edit / reject).
-   - Approve → sends as-is via Gmail MCP, moves file to `queue/done/`.
-   - Edit → opens the draft in the user's editor, sends the edited version, logs a
-     diff summary to `learnings/email-rejections.md`.
+5. The user reviews with `scripts/review_queue.py` or the dashboard (approve /
+   edit / reject).
+   - Approve → sends as-is, moves file to `queue/done/`.
+   - Edit → opens the draft (editor for the terminal script, a textarea for the
+     dashboard), sends the edited version, logs a diff summary to
+     `learnings/email-rejections.md`.
    - Reject → does not send, logs the reason to `learnings/email-rejections.md`.
+
+**The actual send step is direct Gmail API, not Claude Code** —
+`scripts/gmail_api.py`, set up once via `python scripts/gmail_auth_setup.py`
+(see `docs/gmail-api-setup.md`). This changed 2026-08-20 after real testing
+found the original design (`claude -p` with the Gmail MCP reply tool) unreliable
+in the same way as the headless-triage issue above: a `-p` call could exit 0
+looking successful while having sent nothing, because the underlying MCP tool
+call was silently denied by what looks like a built-in Claude Code safety
+classifier for sensitive actions. Reading/searching Gmail through the MCP
+connector is unaffected and still works fine — only the mechanical "send this"
+step moved. If `sessions/gmail_token.json` doesn't exist yet, sending will fail
+with a clear `GmailNotAuthorized` message pointing at the setup doc.
 
 ## Rules that apply to every subagent, always
 
