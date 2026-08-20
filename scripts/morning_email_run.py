@@ -36,22 +36,55 @@ CLAUDE_BIN = shutil.which("claude")
 if CLAUDE_BIN is None:
     sys.exit("Could not find 'claude' on PATH. Is Claude Code installed and on PATH?")
 
-# Gmail tools this agent must never call directly — sending/trashing/spam-marking is
-# a separate, explicitly-approved action performed by review_queue.py, not here.
-# Update this list if `claude mcp list` shows a different connector/tool naming.
+# Confirmed on this machine via `claude -p "list gmail tool names"` — the connector
+# is named "claude_ai_Gmail", not "gmail". Re-check with the same command if this
+# ever stops matching (e.g. after reconnecting the Gmail connector).
+GMAIL_PREFIX = "mcp__claude_ai_Gmail__"
+
+# Exactly what agents/email-triage.md scopes this agent to: read + draft, nothing
+# that sends or mutates mail state beyond labeling/drafting.
+ALLOWED_GMAIL_TOOLS = [
+    GMAIL_PREFIX + name
+    for name in [
+        "search_threads",
+        "get_thread",
+        "get_message",
+        "list_labels",
+        "label_thread",
+        "label_message",
+    ]
+]
+
+# Belt-and-suspenders explicit denylist for the sensitive/irreversible ones, even
+# though omitting them from ALLOWED_GMAIL_TOOLS already blocks them by default.
 DISALLOWED_GMAIL_TOOLS = [
-    "mcp__gmail__send_message",
-    "mcp__gmail__reply",
-    "mcp__gmail__forward",
-    "mcp__gmail__trash_message",
-    "mcp__gmail__trash_thread",
-    "mcp__gmail__mark_message_spam",
-    "mcp__gmail__mark_thread_spam",
+    GMAIL_PREFIX + name
+    for name in [
+        "send_message",
+        "reply",
+        "forward",
+        "trash_message",
+        "trash_thread",
+        "mark_message_spam",
+        "mark_thread_spam",
+    ]
 ]
 
 
 def build_prompt(hours: int) -> str:
     return f"""You are the email-triage agent. Follow agents/email-triage.md exactly.
+
+This is an unattended, non-interactive run with no one available to answer
+questions — if you ask for confirmation, there is no one to respond and the run
+will simply fail. The user already gave their approval by running
+scripts/morning_email_run.py themselves; that is the approval for everything this
+agent is scoped to do. You are pre-authorized, right now, with no further
+confirmation needed, to: search Gmail, read thread/message contents, and write
+files under queue/. Call the Gmail search tool immediately as your first action —
+do not ask whether you should, do not describe what you're about to do and wait,
+just do it. The only thing actually gated behind human approval is sending mail,
+and this agent physically cannot do that — send/reply/forward tools are not in its
+tool list at all, so there is nothing left here that needs a question asked.
 
 Task for this run:
 1. Read agents/email-triage.md, instructions/email-triage.md, and the tail of
@@ -73,8 +106,11 @@ def main():
     parser.add_argument(
         "--unattended",
         action="store_true",
-        help="Use acceptEdits permission mode for non-interactive (Task Scheduler) runs. "
-        "Omit this for the first several manual runs so you can watch tool calls.",
+        help="Skip the interactive permission dialog for non-interactive (Task Scheduler) "
+        "runs, since there's no one there to answer it. Safety boundary is still "
+        "--allowedTools/--disallowedTools above (send/reply/forward/trash/spam are never "
+        "in the tool list). Omit this for the first several manual runs so you can watch "
+        "tool calls before trusting it unattended.",
     )
     args = parser.parse_args()
 
@@ -87,13 +123,15 @@ def main():
         CLAUDE_BIN,
         "-p",
         prompt,
+        "--allowedTools",
+        ",".join(["Read", "Write"] + ALLOWED_GMAIL_TOOLS),
         "--disallowedTools",
         ",".join(DISALLOWED_GMAIL_TOOLS),
         "--output-format",
         "text",
     ]
     if args.unattended:
-        cmd += ["--permission-mode", "acceptEdits"]
+        cmd += ["--dangerously-skip-permissions"]
 
     print(f"[{datetime.now(timezone.utc).isoformat()}] Running email-triage agent "
           f"(lookback={args.hours}h, unattended={args.unattended})...")
