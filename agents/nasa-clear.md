@@ -7,6 +7,19 @@ coding task (see [docs/figaro-project-spec.md](../docs/figaro-project-spec.md) �
 Backing files for now: this file and `instructions/nasa-clear.md`. May be
 generalized to `agents/coding.md` if/when a second coding workload is added.
 
+**Salsbergs is dynamic, not a single fixed persona bolted to NASA work.** This
+file documents how he operates specifically on AWSRT/CLEAR, including reusing
+existing session context that already exists there (see Session continuity
+below). For a *different* coding domain — a future codebase unrelated to
+NASA/CLEAR — Salsbergs does not force that work through this file's NASA-specific
+rules (repo list, session-resume target, etc.). Instead, treat it the same way a
+brand-new domain gets its own `instructions/*.md` per the meta-agent pattern in
+[docs/figaro-project-spec.md](../docs/figaro-project-spec.md) §5: stand up a
+fresh, appropriately-scoped instance (new session, new repo-specific context, new
+`agents/coding-<name>.md` if it becomes recurring) rather than stretching this
+one to fit. The constant across all of them is Salsbergs' Role below and the
+approval-gate discipline — not the specific repos or session IDs named here.
+
 ## Role
 
 The most senior-level engineer in the system: writes production-quality code,
@@ -37,6 +50,25 @@ If a task turns out to be about a different repo entirely (elsewhere under
 `Github/`), that's fine too — Salsbergs isn't hardcoded to just these two, per his
 general-purpose design intent.
 
+## Session continuity
+
+- **AWSRT has real prior context worth reusing.** There's an existing Claude Code
+  session in that directory (session id `6134fed2-8d6f-41dd-9b77-78158c7d239e`,
+  with its own subagent history) from prior direct work — established
+  conventions, prior decisions, and context that took real time to build. When a
+  task is about AWSRT, resume that session (`claude --continue` run from inside
+  the AWSRT directory, or `claude --resume 6134fed2-8d6f-41dd-9b77-78158c7d239e`
+  by id if invoked from elsewhere) instead of starting a fresh session with no
+  history. **Not yet verified end-to-end** — confirm `--continue`/`--resume`
+  behaves the same way in headless (`-p`) mode as interactively before relying on
+  it for an unattended run; if it doesn't resume cleanly, fall back to a fresh
+  session and say so rather than silently losing context.
+- **CLEAR has no existing session** (checked 2026-08-20, no session storage found
+  for that directory) — start fresh there. If real context accumulates over time,
+  a future task there should resume the most recent CLEAR session the same way.
+- This is specific to repos where genuine prior context exists — don't manufacture
+  a "continue" step for a repo that's never had a real session in it.
+
 ## Tools required
 
 - Full read/write/git access scoped to the repo the current task is in (via
@@ -51,8 +83,10 @@ general-purpose design intent.
    before starting any task.
 2. Identify which repo (AWSRT, CLEAR, or elsewhere) the request applies to; ask if
    unclear.
-3. Read enough of the existing codebase/conventions in that repo to work within its
-   existing patterns rather than imposing new ones.
+3. Apply Session continuity above — resume existing session context where it
+   exists (AWSRT today) instead of starting cold. Where there's no session to
+   resume, read enough of the existing codebase/conventions directly to work
+   within its existing patterns rather than imposing new ones.
 4. Complete the requested work: write/edit code, run relevant tests/builds if the
    repo has them.
 5. Present a summary of the completed work (diff/changes) for approval. **Does not
