@@ -29,7 +29,23 @@ import queue_lib as ql
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
+# Salsbergs/NASA session-continuity target — see agents/nasa-clear.md "Session
+# continuity". Chat questions about this work should be answered from that real
+# session's context, not from Figaro's own repo (which knows nothing about it).
+AWSRT_DIR = REPO_ROOT.parent / "AWSRT"
+AWSRT_SESSION_ID = "6134fed2-8d6f-41dd-9b77-78158c7d239e"
+NASA_KEYWORDS = [
+    "nasa", "awsrt", "clear repo", "clear project", "pleiades", "igor",
+    "salsbergs", "swmf", "magnetogram", "heartbeat", "smart-petsc",
+    "space weather", "sofie",
+]
+
 app = Flask(__name__)
+
+
+def is_nasa_related(message: str) -> bool:
+    lowered = message.lower()
+    return any(kw in lowered for kw in NASA_KEYWORDS)
 
 
 def learnings_tail(n_entries: int = 5) -> str:
@@ -98,24 +114,36 @@ def chat():
     # question to answer, replying "I don't see a question yet" even though it was
     # right there. Leading with the question and keeping the framing short after it
     # fixed this reliably in testing (2026-08-20).
-    prompt = (
-        f"Answer this question about the Figaro repo, using the Read tool to look "
-        f"things up: {message}\n\n"
-        "(This is a read-only dashboard chat box - look things up freely with "
-        "Read, but you can't write, edit, send, or take actions here. If the "
-        "question asks for an action, say so and point to the right terminal "
-        "command or interactive session instead.)"
+    read_only_note = (
+        "(Read-only lookup - you can't write, edit, send, or take actions here. "
+        "If the question asks for an action, say so and point to the right "
+        "terminal command or interactive session instead.)"
     )
-    cmd = [
-        ql.CLAUDE_BIN, "-p", prompt,
-        "--allowedTools", "Read",
-        "--output-format", "text",
-    ]
+
+    if is_nasa_related(message):
+        # Route to the real AWSRT session instead of Figaro's own repo, which has
+        # no visibility into NASA/Salsbergs work at all. Same mechanism verified
+        # for Salsbergs in agents/nasa-clear.md "Session continuity".
+        prompt = f"Answer this question, using the Read tool to look things up: {message}\n\n{read_only_note}"
+        cmd = [ql.CLAUDE_BIN, "--resume", AWSRT_SESSION_ID, "-p", prompt,
+               "--allowedTools", "Read", "--output-format", "text"]
+        cwd = AWSRT_DIR
+        source = "awsrt"
+    else:
+        prompt = (
+            f"Answer this question about the Figaro repo, using the Read tool to "
+            f"look things up: {message}\n\n{read_only_note}"
+        )
+        cmd = [ql.CLAUDE_BIN, "-p", prompt,
+               "--allowedTools", "Read", "--output-format", "text"]
+        cwd = REPO_ROOT
+        source = "figaro"
+
     result = subprocess.run(
-        cmd, cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8", timeout=120
+        cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", timeout=120
     )
     reply = result.stdout.strip() or "(no response)"
-    return jsonify({"reply": reply})
+    return jsonify({"reply": reply, "source": source})
 
 
 def main():
