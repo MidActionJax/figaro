@@ -20,8 +20,12 @@ explicitly out of scope for this agent until Phase 1 has proven itself.
 
 ## Tools required
 
-- Gmail MCP tools: `search_threads`, `get_thread`, `get_message`, `list_labels`,
-  `create_draft`, `label_thread`/`label_message` (for marking triaged mail).
+- Gmail MCP tools (connector name on this machine: `claude_ai_Gmail`, confirmed via
+  `claude -p "list gmail tool names"`): `search_threads`, `get_thread`, `get_message`,
+  `list_labels`, `label_thread`/`label_message` (for marking triaged mail).
+- Drafts themselves are written as local markdown files in `queue/`, not as Gmail
+  drafts — `create_draft`/`update_draft` are intentionally not granted, to avoid
+  side effects on the real mailbox during triage runs.
 - **Not granted:** `send_message`, `reply`, `forward`, `trash_*`, `mark_*_spam`. This
   agent prepares drafts only — sending is a separate, gated step handled by
   `scripts/review_queue.py` after explicit user approval, not by this agent directly.

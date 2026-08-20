@@ -32,9 +32,10 @@ DONE_DIR = QUEUE_DIR / "done"
 REJECTED_DIR = QUEUE_DIR / "rejected"
 LEARNINGS_FILE = REPO_ROOT / "learnings" / "email-rejections.md"
 
-# Must match the tool name Gmail MCP actually exposes on this machine — check with
-# `claude mcp list` / the tool name observed when create_draft etc. are used.
-SEND_TOOL_NAME = "mcp__gmail__reply"
+# Confirmed on this machine via `claude -p "list gmail tool names"` — the connector
+# is named "claude_ai_Gmail", not "gmail". Re-check with the same command if this
+# ever stops matching (e.g. after reconnecting the Gmail connector).
+SEND_TOOL_NAME = "mcp__claude_ai_Gmail__reply"
 
 # subprocess.run() doesn't do PATHEXT resolution on Windows the way a shell does, so
 # a bare "claude" fails to find claude.cmd even though `where claude` finds it fine.
