@@ -19,4 +19,7 @@ audit purposes even after consolidation).
 
 ---
 
-*(no entries yet)*
+### 2026-08-20-162723 Coffeee
+- action: reject
+- subject: Coffeee
+- reason: we dont need to respond to these coffee things
