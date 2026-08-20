@@ -112,6 +112,32 @@ connector is unaffected and still works fine — only the mechanical "send this"
 step moved. If `sessions/gmail_token.json` doesn't exist yet, sending will fail
 with a clear `GmailNotAuthorized` message pointing at the setup doc.
 
+## Running the dashboard
+
+The dashboard now auto-starts at login (set up 2026-08-20), matching the
+original spec's "no terminal needed for daily use" goal:
+
+- `scripts/start_dashboard.bat` (tracked in this repo) checks whether something
+  is already listening on port 5151 and exits immediately if so — this exists
+  specifically to prevent the duplicate-process bug found during send-path
+  testing (two servers bound to the same port, requests routed unpredictably
+  between old and new code). If nothing's listening, it launches
+  `pythonw.exe dashboard/server.py` via PowerShell's `Start-Process` (not a bare
+  invocation — a real test found that plain `cmd /c` invocations of a background
+  process didn't reliably detach in this environment's tooling; `Start-Process`
+  is the Windows-correct mechanism and worked cleanly every time it was tested).
+- A stub at
+  `C:\Users\jaxon\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\figaro-dashboard.bat`
+  (outside this repo, per-machine, not git-tracked) just calls the real script
+  above. Windows runs anything in that Startup folder automatically at login.
+- Verified working via manual invocation (both the "not running, start it" and
+  "already running, skip" paths, run repeatedly). **Not yet verified against a
+  real logout/login cycle** — the Startup-folder trigger itself is standard
+  Windows behavior and should work the same way, but hasn't been proven through
+  an actual restart yet.
+- To start it manually instead of waiting for login: `python dashboard/server.py`
+  from the repo root (or just run `scripts/start_dashboard.bat` directly).
+
 ## Rules that apply to every subagent, always
 
 - No email is sent without approval (editing counts as approval of the edited text).
